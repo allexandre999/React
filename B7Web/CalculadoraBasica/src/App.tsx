@@ -1,4 +1,3 @@
-import {useState} from 'react';
 import { Somar } from './components/Somar';
 
 function App(){ 
