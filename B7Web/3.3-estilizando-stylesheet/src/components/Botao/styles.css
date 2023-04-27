@@ -1,0 +1,15 @@
+.botaoClicadoo {
+    background-color: 'vermelho';
+    color: branco;
+    font-weight: bold;
+    padding: 10px 20px;
+    border: 2px solid black;
+}
+
+.botaoNaoClicadoo{
+    background-color: 'green';
+    color: black;
+    padding: 10px 20px;
+    border: 2px dotted blue;
+    border-radius: 20px;
+}

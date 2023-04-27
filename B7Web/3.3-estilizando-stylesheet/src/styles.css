@@ -1,0 +1,15 @@
+.clicado {
+    background-color: 'vermelho';
+    color: branco;
+    font-weight: bold;
+    padding: 10px 20px;
+    border: 2px solid black;
+}
+
+.naoClicado{
+    background-color: 'green';
+    color: black;
+    font-weight: dotted;
+    padding: 10px 20px;
+    border: 2px solid blue;
+}
