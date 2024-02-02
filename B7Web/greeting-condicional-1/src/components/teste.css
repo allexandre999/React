@@ -1,0 +1,13 @@
+/* Estilos usando grid para centralizar o conteúdo */
+.container {
+    display: grid;
+    place-items: center;
+    height: 100vh; /* 100% da altura da viewport */
+  }
+  
+  /* Estilos para o fundo gradiente, baseado na sua classe existente */
+  .gradient-background {
+    background: linear-gradient(to right, #87CEEB, #4B0082); /* Substitua as cores pelos seus valores */
+    color: white; /* Cor do texto */
+    flex:auto;
+  }
