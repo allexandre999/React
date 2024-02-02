@@ -1,9 +1,12 @@
 import logo from './logo.svg';
 import './App.css';
+import Banner from './componentes/Banner/Banner';
+
 
 function App() {
   return (
     <div className="App">
+      <Banner/>
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p display='inline'>
@@ -15,7 +18,6 @@ function App() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          
           Aprenda React
         </a>
       </header>
