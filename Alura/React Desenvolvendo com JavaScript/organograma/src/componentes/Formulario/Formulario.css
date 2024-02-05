@@ -1,0 +1,16 @@
+.formulario {
+    margin-top: 20px; /* Espaçamento entre o banner e o formulário, ajuste conforme necessário */
+    padding: 20px; /* Espaçamento interno do formulário, ajuste conforme necessário */
+    background-color: #fff; /* Cor de fundo do formulário, ajuste conforme necessário */
+    border-radius: 5px; /* Borda arredondada, ajuste conforme necessário */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra, ajuste conforme necessário */
+}
+
+.formulario form {
+    display: flex;
+    flex-direction: column;
+}
+
+.formulario form input {
+    margin-bottom: 10px;
+}
