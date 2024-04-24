@@ -1,0 +1,1 @@
+Pasta destinada a exercicios propostos no curso
