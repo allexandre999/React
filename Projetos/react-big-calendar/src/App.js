@@ -2,31 +2,13 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
+import 'moment/locale/pt-br'; // Importe o idioma português do Moment
 import dayjs from 'dayjs';
 
 const localizer = momentLocalizer(moment);
 
 function App() {
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      start: new Date(),
-      end: new Date(moment().add(1, 'days')),
-      title: 'Example Event',
-    },
-    {
-      id: 2,
-      start: dayjs('2024-04-11T12:00:00').toDate(),
-      end: dayjs('2024-04-12T12:00:00').toDate(),
-      title: 'Prof Augusto',
-    },
-    {
-      id: 3,
-      start: dayjs('2024-04-12T12:00:00').toDate(),
-      end: dayjs('2024-04-13T12:00:00').toDate(),
-      title: 'Prof Gustavo',
-    },
-  ]);
+  const [events, setEvents] = useState([]);
 
   const [formData, setFormData] = useState({
     id: null,
@@ -71,35 +53,69 @@ function App() {
     [setIsFormOpen, setIsEditing, setFormData]
   );
 
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    const editedEvent = {
-      id: formData.id,
-      start: formData.start,
-      end: formData.end,
-      title: formData.title,
-    };
+  // Função auxiliar para dividir um evento em intervalos de 20 minutos
+const divideEventBy20Minutes = (event) => {
+  const eventsArray = [];
+  const start = dayjs(event.start);
+  const end = dayjs(event.end);
 
-    let updatedEvents;
-    if (isEditing) {
-      updatedEvents = events.map((existingEvent) =>
-        existingEvent.id === editedEvent.id ? editedEvent : existingEvent
-      );
-    } else {
-      editedEvent.id = events.length + 1; // Novo ID para o novo evento
-      updatedEvents = [...events, editedEvent];
-    }
-
-    setEvents(updatedEvents);
-    setIsFormOpen(false);
-    setIsEditing(false);
-    setFormData({
-      id: null,
-      start: '',
-      end: '',
-      title: '',
+  let current = start.clone();
+  while (current.isBefore(end)) {
+    const nextEnd = current.clone().add(20, 'minutes');
+    eventsArray.push({
+      id: eventsArray.length + 1,
+      start: current.toDate(),
+      end: nextEnd.toDate(),
+      title: event.title,
     });
+    current = nextEnd;
+  }
+
+  return eventsArray;
+};
+
+// Função para atualizar os eventos após editar ou adicionar um evento
+const updateEvents = (formData) => {
+  const editedEvent = {
+    id: formData.id,
+    start: dayjs(formData.start).toDate(),
+    end: dayjs(formData.end).toDate(),
+    title: formData.title,
   };
+
+  let updatedEvents;
+  if (isEditing) {
+    updatedEvents = events.flatMap((existingEvent) =>
+      existingEvent.id === editedEvent.id ? divideEventBy20Minutes(editedEvent) : existingEvent
+    );
+  } else {
+    const newEvents = divideEventBy20Minutes(editedEvent);
+    updatedEvents = [...events, ...newEvents];
+  }
+
+  return updatedEvents;
+};
+
+// Função para lidar com a submissão do formulário
+const handleFormSubmit = (e) => {
+  e.preventDefault();
+
+  if (!formData.start || !formData.end || !formData.title) {
+    alert('Por favor, preencha todos os campos!');
+    return;
+  }
+
+  const updatedEvents = updateEvents(formData);
+  setEvents(updatedEvents);
+  setIsFormOpen(false);
+  setIsEditing(false);
+  setFormData({
+    id: null,
+    start: '',
+    end: '',
+    title: '',
+  });
+};
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -126,8 +142,17 @@ function App() {
         events={events}
         localizer={localizer}
         toolbar={true}
+        messages={{
+          today: 'Hoje',
+          previous: 'Anterior',
+          next: 'Próximo',
+          month: 'Mês',
+          week: 'Semana',
+          day: 'Dia',
+        }}
         defaultView="month"
         startAccessor="start"
+        endAccessor="end"
         max={dayjs().toDate()}
         defaultDate={new Date()}
         onSelectEvent={onSelectEvent}
