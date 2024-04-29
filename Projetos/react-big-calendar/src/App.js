@@ -9,14 +9,12 @@ const localizer = momentLocalizer(moment);
 
 function App() {
   const [events, setEvents] = useState([]);
-
   const [formData, setFormData] = useState({
     id: null,
     start: '',
     end: '',
     title: '',
   });
-
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -54,68 +52,83 @@ function App() {
   );
 
   // Função auxiliar para dividir um evento em intervalos de 20 minutos
-const divideEventBy20Minutes = (event) => {
-  const eventsArray = [];
-  const start = dayjs(event.start);
-  const end = dayjs(event.end);
+  const divideEventBy20Minutes = (event) => {
+    const eventsArray = [];
+    const start = dayjs(event.start);
+    const end = dayjs(event.end);
 
-  let current = start.clone();
-  while (current.isBefore(end)) {
-    const nextEnd = current.clone().add(20, 'minutes');
-    eventsArray.push({
-      id: eventsArray.length + 1,
-      start: current.toDate(),
-      end: nextEnd.toDate(),
-      title: event.title,
-    });
-    current = nextEnd;
-  }
+    let current = start.clone();
+    while (current.isBefore(end)) {
+      const nextEnd = current.clone().add(20, 'minutes');
+      eventsArray.push({
+        id: eventsArray.length + 1,
+        start: current.toDate(),
+        end: nextEnd.toDate(),
+        title: event.title,
+      });
+      current = nextEnd;
+    }
 
-  return eventsArray;
-};
-
-// Função para atualizar os eventos após editar ou adicionar um evento
-const updateEvents = (formData) => {
-  const editedEvent = {
-    id: formData.id,
-    start: dayjs(formData.start).toDate(),
-    end: dayjs(formData.end).toDate(),
-    title: formData.title,
+    return eventsArray;
   };
 
-  let updatedEvents;
-  if (isEditing) {
-    updatedEvents = events.flatMap((existingEvent) =>
-      existingEvent.id === editedEvent.id ? divideEventBy20Minutes(editedEvent) : existingEvent
-    );
-  } else {
-    const newEvents = divideEventBy20Minutes(editedEvent);
-    updatedEvents = [...events, ...newEvents];
-  }
+  // Função para atualizar os eventos após editar ou adicionar um evento
+  const updateEvents = (formData) => {
+    const editedEvent = {
+      id: formData.id,
+      start: dayjs(formData.start).toDate(),
+      end: dayjs(formData.end).toDate(),
+      title: formData.title,
+    };
 
-  return updatedEvents;
-};
+    const eventsArray = [];
+    const start = dayjs(editedEvent.start);
+    const end = dayjs(editedEvent.end);
 
-// Função para lidar com a submissão do formulário
-const handleFormSubmit = (e) => {
-  e.preventDefault();
+    let current = start.clone();
+    while (current.isBefore(end)) {
+      const nextEnd = current.clone().add(20, 'minutes');
+      // Verifica se o horário está dentro da faixa de 8h às 18h
+      if (current.hour() >= 8 && current.hour() < 18) {
+        eventsArray.push({
+          id: eventsArray.length + 1,
+          start: current.toDate(),
+          end: nextEnd.toDate(),
+          title: editedEvent.title,
+        });
+      }
+      current = nextEnd;
+    }
 
-  if (!formData.start || !formData.end || !formData.title) {
-    alert('Por favor, preencha todos os campos!');
-    return;
-  }
+    return isEditing ? eventsArray : [...events, ...eventsArray];
+  };
 
-  const updatedEvents = updateEvents(formData);
-  setEvents(updatedEvents);
-  setIsFormOpen(false);
-  setIsEditing(false);
-  setFormData({
-    id: null,
-    start: '',
-    end: '',
-    title: '',
-  });
-};
+  // Função para lidar com a submissão do formulário
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+
+    if (!formData.start || !formData.end || !formData.title) {
+      alert('Por favor, preencha todos os campos!');
+      return;
+    }
+
+    const updatedEvents = updateEvents(formData);
+    setEvents(updatedEvents);
+    setIsFormOpen(false);
+    setIsEditing(false);
+    setFormData({
+      id: null,
+      start: '',
+      end: '',
+      title: '',
+    });
+  };
+
+  // Função para deletar um evento existente
+  const handleDeleteEvent = (eventId) => {
+    const filteredEvents = events.filter((event) => event.id !== eventId);
+    setEvents(filteredEvents);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -153,7 +166,22 @@ const handleFormSubmit = (e) => {
         defaultView="month"
         startAccessor="start"
         endAccessor="end"
-        max={dayjs().toDate()}
+        min={new Date().setHours(8, 0, 0)} // Define o horário mínimo como 8:00
+        max={new Date().setHours(18, 0, 0)} // Define o horário máximo como 18:00
+        formats={{
+          timeGutterFormat: 'HH:mm', // Formato de hora
+          eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
+            `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`, // Formato de intervalo de hora em eventos
+          dayFormat: 'DD/MM/YYYY', // Formato de dia
+          dayHeaderFormat: 'dddd, DD/MM', // Formato de cabeçalho de dia
+          monthHeaderFormat: 'MMMM YYYY', // Formato de cabeçalho de mês
+          dayRangeHeaderFormat: ({ start, end }, culture, localizer) =>
+            `${localizer.format(start, 'DD/MM/YYYY', culture)} - ${localizer.format(end, 'DD/MM/YYYY', culture)}`, // Formato de cabeçalho de intervalo de dias
+          agendaDateFormat: 'DD/MM/YYYY', // Formato de data na agenda
+          agendaTimeFormat: 'HH:mm', // Formato de hora na agenda
+          agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
+            `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`, // Formato de intervalo de hora na agenda
+        }}
         defaultDate={new Date()}
         onSelectEvent={onSelectEvent}
         onSelectSlot={handleSlotClick}
@@ -176,8 +204,9 @@ const handleFormSubmit = (e) => {
             <input
               type="datetime-local"
               name="start"
-              value={formData.start}
+              value={dayjs(formData.start).format('YYYY-MM-DDTHH:mm')}
               onChange={handleInputChange}
+              step="1200" // 20 minutos em segundos
             />
           </label>
           <label>
@@ -185,14 +214,20 @@ const handleFormSubmit = (e) => {
             <input
               type="datetime-local"
               name="end"
-              value={formData.end}
+              value={dayjs(formData.end).format('YYYY-MM-DDTHH:mm')}
               onChange={handleInputChange}
+              step="1200" // 20 minutos em segundos
             />
           </label>
           <button type="submit">Salvar</button>
           <button type="button" onClick={handleCloseForm}>
             Cancelar
           </button>
+          {isEditing && (
+            <button type="button" onClick={() => handleDeleteEvent(formData.id)}>
+              Excluir
+            </button>
+          )}
         </form>
       )}
     </div>
