@@ -4,10 +4,9 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
 import 'moment/locale/pt-br'; // Importe o idioma português do Moment
 import dayjs from 'dayjs';
-import { DatePicker, Select, Input } from 'antd';
+import { DatePicker, Select, Input, Button } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import locale from 'antd/es/date-picker/locale/pt_BR';
-import axios from 'axios';
 
 const localizer = momentLocalizer(moment);
 
@@ -216,7 +215,7 @@ function App() {
             Nome do usuário:
             <Input
               style={{
-                width: 170,
+                width: 120,
               }}
               type="text"
               name="userName"
@@ -277,14 +276,16 @@ function App() {
               ]}
             />
           )}
-          <button type="submit">Salvar</button>
-          <button type="button" onClick={handleCloseForm}>
+          <Button type="primary" htmlType="submit">
+            Salvar
+          </Button>
+          <Button type="default" onClick={handleCloseForm}>
             Cancelar
-          </button>
+          </Button>
           {isEditing && (
-            <button type="button" onClick={() => handleDeleteEvent(formData.id)}>
+            <Button type="primary" onClick={() => handleDeleteEvent(formData.id)} danger>
               Excluir
-            </button>
+            </Button>
           )}
         </form>
       )}
@@ -292,4 +293,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
