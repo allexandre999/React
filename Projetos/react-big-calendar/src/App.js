@@ -4,6 +4,10 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
 import 'moment/locale/pt-br'; // Importe o idioma português do Moment
 import dayjs from 'dayjs';
+import { DatePicker, Select, Input } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
+import locale from 'antd/es/date-picker/locale/pt_BR';
+import axios from 'axios';
 
 const localizer = momentLocalizer(moment);
 
@@ -11,9 +15,10 @@ function App() {
   const [events, setEvents] = useState([]);
   const [formData, setFormData] = useState({
     id: null,
-    start: '',
-    end: '',
-    title: '',
+    start: new Date(),
+    end: new Date(),
+    userName: '',
+    duration: 0,
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -31,9 +36,10 @@ function App() {
     setIsEditing(false);
     setFormData({
       id: null,
-      start: '',
-      end: '',
-      title: '',
+      start: dayjs().hour(8).startOf('hour').toDate(),
+      end: dayjs().hour(8).startOf('hour').add(1, 'hour').toDate(),
+      userName: '',
+      duration: 0,
     });
   }, []);
 
@@ -45,69 +51,24 @@ function App() {
         id: event.id,
         start: event.start,
         end: event.end,
-        title: event.title,
+        userName: event.userName,
+        duration: dayjs(event.end).diff(dayjs(event.start), 'minutes'),
       });
     },
     [setIsFormOpen, setIsEditing, setFormData]
   );
 
-  // Função auxiliar para dividir um evento em intervalos de 20 minutos
-  const divideEventBy20Minutes = (event) => {
-    const eventsArray = [];
-    const start = dayjs(event.start);
-    const end = dayjs(event.end);
-
-    let current = start.clone();
-    while (current.isBefore(end)) {
-      const nextEnd = current.clone().add(20, 'minutes');
-      eventsArray.push({
-        id: eventsArray.length + 1,
-        start: current.toDate(),
-        end: nextEnd.toDate(),
-        title: event.title,
-      });
-      current = nextEnd;
-    }
-
-    return eventsArray;
+  const handleDateTimeChange = (time, field) => {
+    if (!time) return;
+    setFormData({
+      ...formData,
+      [field]: time.toDate(),
+    });
   };
 
-  // Função para atualizar os eventos após editar ou adicionar um evento
-  const updateEvents = (formData) => {
-    const editedEvent = {
-      id: formData.id,
-      start: dayjs(formData.start).toDate(),
-      end: dayjs(formData.end).toDate(),
-      title: formData.title,
-    };
-
-    const eventsArray = [];
-    const start = dayjs(editedEvent.start);
-    const end = dayjs(editedEvent.end);
-
-    let current = start.clone();
-    while (current.isBefore(end)) {
-      const nextEnd = current.clone().add(20, 'minutes');
-      // Verifica se o horário está dentro da faixa de 8h às 18h
-      if (current.hour() >= 8 && current.hour() < 18) {
-        eventsArray.push({
-          id: eventsArray.length + 1,
-          start: current.toDate(),
-          end: nextEnd.toDate(),
-          title: editedEvent.title,
-        });
-      }
-      current = nextEnd;
-    }
-
-    return isEditing ? eventsArray : [...events, ...eventsArray];
-  };
-
-  // Função para lidar com a submissão do formulário
   const handleFormSubmit = (e) => {
     e.preventDefault();
-
-    if (!formData.start || !formData.end || !formData.title) {
+    if (!formData.start || !formData.end || !formData.userName) {
       alert('Por favor, preencha todos os campos!');
       return;
     }
@@ -120,14 +81,9 @@ function App() {
       id: null,
       start: '',
       end: '',
-      title: '',
+      userName: '',
+      duration: 0,
     });
-  };
-
-  // Função para deletar um evento existente
-  const handleDeleteEvent = (eventId) => {
-    const filteredEvents = events.filter((event) => event.id !== eventId);
-    setEvents(filteredEvents);
   };
 
   const handleInputChange = (e) => {
@@ -145,8 +101,71 @@ function App() {
       id: null,
       start: '',
       end: '',
-      title: '',
+      userName: '',
+      duration: 0,
     });
+  };
+
+  const handleDeleteEvent = (eventId) => {
+    const filteredEvents = events.filter((event) => event.id !== eventId);
+    setEvents(filteredEvents);
+    setIsFormOpen(false);
+  };
+
+  const eventTitle = ({ userName, start, end }) => {
+    const formattedStart = dayjs(start).format('HH:mm');
+    const formattedEnd = dayjs(end).format('HH:mm');
+    return `${userName} - ${formattedStart} - ${formattedEnd}`;
+  };
+
+  const disabledMinutes = () => [5, 10, 25, 35, 40, 45, 50, 55]; 
+
+  const disabledTime = (time) => {
+    const hour = time.hour();
+    return {
+      disabledHours: () => {
+        const disabled = [];
+        for (let i = 0; i < 8; i++) {
+          disabled.push(i);
+        }
+        for (let i = 19; i < 24; i++) {
+          disabled.push(i);
+        }
+        return disabled;
+      },
+      disabledMinutes: () => disabledMinutes(),
+    };
+  };
+
+  const updateEvents = (formData) => {
+    const editedEvent = {
+      id: formData.id,
+      start: dayjs(formData.start).toDate(),
+      end: dayjs(formData.end).toDate(),
+      userName: formData.userName,
+    };
+
+    const eventsArray = [];
+    const start = dayjs(editedEvent.start);
+    const end = dayjs(editedEvent.end);
+
+    let current = start.clone();
+    while (current.isBefore(end)) {
+      const nextEnd = current.clone().add(formData.duration, 'minutes');
+      if (current.hour() >= 8 && current.hour() < 18) {
+        eventsArray.push({
+          id: eventsArray.length + 1,
+          start: current.toDate(),
+          end: nextEnd.toDate(),
+          userName: editedEvent.userName,
+        });
+      }
+      current = nextEnd;
+    }
+
+    return isEditing
+      ? events.map((event) => (event.id === formData.id ? { ...editedEvent } : event))
+      : [...events, ...eventsArray];
   };
 
   return (
@@ -166,59 +185,98 @@ function App() {
         defaultView="month"
         startAccessor="start"
         endAccessor="end"
-        min={new Date().setHours(8, 0, 0)} // Define o horário mínimo como 8:00
-        max={new Date().setHours(18, 0, 0)} // Define o horário máximo como 18:00
+        min={new Date().setHours(8, 0, 0)}
+        max={new Date().setHours(18, 0, 0)}
         formats={{
-          timeGutterFormat: 'HH:mm', // Formato de hora
+          timeGutterFormat: 'HH:mm',
           eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
-            `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`, // Formato de intervalo de hora em eventos
-          dayFormat: 'DD/MM/YYYY', // Formato de dia
-          dayHeaderFormat: 'dddd, DD/MM', // Formato de cabeçalho de dia
-          monthHeaderFormat: 'MMMM YYYY', // Formato de cabeçalho de mês
+            `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`,
+          dayFormat: 'DD/MM/YYYY',
+          dayHeaderFormat: 'dddd, DD/MM',
+          monthHeaderFormat: 'MMMM YYYY',
           dayRangeHeaderFormat: ({ start, end }, culture, localizer) =>
-            `${localizer.format(start, 'DD/MM/YYYY', culture)} - ${localizer.format(end, 'DD/MM/YYYY', culture)}`, // Formato de cabeçalho de intervalo de dias
-          agendaDateFormat: 'DD/MM/YYYY', // Formato de data na agenda
-          agendaTimeFormat: 'HH:mm', // Formato de hora na agenda
+            `${localizer.format(start, 'DD/MM/YYYY', culture)} - ${localizer.format(end, 'DD/MM/YYYY', culture)}`,
+          agendaDateFormat: 'DD/MM/YYYY',
+          agendaTimeFormat: 'HH:mm',
           agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
-            `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`, // Formato de intervalo de hora na agenda
+            `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`,
         }}
         defaultDate={new Date()}
         onSelectEvent={onSelectEvent}
         onSelectSlot={handleSlotClick}
         selectable
         style={{ height: 500 }}
+        components={{
+          event: ({ event }) => <div>{eventTitle(event)}</div>,
+        }}
       />
       {isFormOpen && (
         <form onSubmit={handleFormSubmit}>
           <label>
-            Título:
-            <input
+            Nome do usuário:
+            <Input
+              style={{
+                width: 170,
+              }}
               type="text"
-              name="title"
-              value={formData.title}
+              name="userName"
+              value={formData.userName}
               onChange={handleInputChange}
             />
           </label>
           <label>
             Início:
-            <input
-              type="datetime-local"
-              name="start"
-              value={dayjs(formData.start).format('YYYY-MM-DDTHH:mm')}
-              onChange={handleInputChange}
-              step="1200" // 20 minutos em segundos
+            <DatePicker
+              showTime={{ format: 'HH:mm' }}
+              format="YYYY-MM-DD HH:mm"
+              locale={locale}
+              minuteStep={5}
+              value={moment(formData.start)}
+              onChange={(time) => handleDateTimeChange(time, 'start')}
+              disabledTime={disabledTime}
+              needConfirm={false}
             />
           </label>
           <label>
             Fim:
-            <input
-              type="datetime-local"
-              name="end"
-              value={dayjs(formData.end).format('YYYY-MM-DDTHH:mm')}
-              onChange={handleInputChange}
-              step="1200" // 20 minutos em segundos
+            <DatePicker
+              showTime={{ format: 'HH:mm' }}
+              format="YYYY-MM-DD HH:mm"
+              locale={locale}
+              minuteStep={5}
+              value={moment(formData.end)}
+              onChange={(time) => handleDateTimeChange(time, 'end')}
+              disabledTime={disabledTime}
+              needConfirm={false}
             />
           </label>
+          {!isEditing && (
+            <Select
+              defaultValue="60"
+              style={{
+                width: 120,
+              }}
+              onChange={(value) => setFormData({ ...formData, duration: value !== '0' ? parseInt(value) : 0 })}
+              options={[
+                {
+                  value: '60',
+                  label: '60',
+                },
+                {
+                  value: '15',
+                  label: '15',
+                },
+                {
+                  value: '20',
+                  label: '20',
+                },
+                {
+                  value: '30',
+                  label: '30',
+                },
+              ]}
+            />
+          )}
           <button type="submit">Salvar</button>
           <button type="button" onClick={handleCloseForm}>
             Cancelar
@@ -234,4 +292,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
