@@ -12,6 +12,8 @@ const localizer = momentLocalizer(moment);
 
 function App() {
   const [events, setEvents] = useState([]);
+  const [nextId, setNextId] = useState(1); // Estado para controlar o próximo ID disponível
+  const [selectedEventId, setSelectedEventId] = useState(null);
   const [formData, setFormData] = useState({
     id: null,
     start: new Date(),
@@ -34,28 +36,30 @@ function App() {
     setIsFormOpen(true);
     setIsEditing(false);
     setFormData({
-      id: null,
+      id: nextId, // Usar o próximo ID disponível ao criar um novo evento
       start: dayjs().hour(8).startOf('hour').toDate(),
       end: dayjs().hour(8).startOf('hour').add(1, 'hour').toDate(),
       userName: '',
       duration: 0,
     });
-  }, []);
+    setNextId(nextId + 1); // Incrementar o próximo ID disponível
+  }, [nextId]);
 
   const onSelectEvent = useCallback(
     (event) => {
-      setIsFormOpen(true);
-      setIsEditing(true);
-      setFormData({
-        id: event.id,
-        start: event.start,
-        end: event.end,
-        userName: event.userName,
-        duration: dayjs(event.end).diff(dayjs(event.start), 'minutes'),
-      });
+      if (event && event.id) {
+        setSelectedEventId(event.id);
+        setIsFormOpen(true);
+        setIsEditing(true);
+        setFormData({
+          ...event,
+          duration: dayjs(event.end).diff(dayjs(event.start), 'minutes'),
+        });
+      }
     },
-    [setIsFormOpen, setIsEditing, setFormData]
+    [setSelectedEventId, setIsFormOpen, setIsEditing, setFormData]
   );
+  
 
   const handleDateTimeChange = (time, field) => {
     if (!time) return;
@@ -71,7 +75,22 @@ function App() {
       alert('Por favor, preencha todos os campos!');
       return;
     }
-
+  
+    const updatedEvents = [...events, ...createFragmentedEvents(formData)];
+    setEvents(updatedEvents);
+    setIsFormOpen(false);
+    setFormData({
+      id: null,
+      start: '',
+      end: '',
+      userName: '',
+      duration: 0,
+    });
+  };
+  
+  
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
     const updatedEvents = updateEvents(formData);
     setEvents(updatedEvents);
     setIsFormOpen(false);
@@ -84,6 +103,24 @@ function App() {
       duration: 0,
     });
   };
+
+  const handleEditEvent = () => {
+    console.log("Editar evento chamado");
+    setIsFormOpen(true);
+    setIsEditing(true);
+  
+    // Encontrar o evento selecionado para edição
+    const selectedEventIndex = events.findIndex(event => event.id === selectedEventId);
+    
+    if (selectedEventIndex !== -1) {
+      const updatedEvents = [...events];
+      updatedEvents[selectedEventIndex] = formData;
+      setEvents(updatedEvents);
+    }
+  };
+  
+  
+  
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -105,9 +142,21 @@ function App() {
     });
   };
 
-  const handleDeleteEvent = (eventId) => {
-    const filteredEvents = events.filter((event) => event.id !== eventId);
-    setEvents(filteredEvents);
+  const handleDeleteEvent = () => {
+    if (!selectedEventId) {
+      console.log("Nenhum evento selecionado para exclusão.");
+      return;
+    }
+  
+    const selectedEventIndex = events.findIndex(event => event.id === selectedEventId);
+    if (selectedEventIndex === -1) {
+      console.log("Evento selecionado não encontrado.");
+      return;
+    }
+  
+    const updatedEvents = [...events];
+    updatedEvents.splice(selectedEventIndex, 1);
+    setEvents(updatedEvents);
     setIsFormOpen(false);
   };
 
@@ -117,7 +166,7 @@ function App() {
     return `${userName} - ${formattedStart} - ${formattedEnd}`;
   };
 
-  const disabledMinutes = () => [5, 10, 25, 35, 40, 45, 50, 55]; 
+  const disabledMinutes = () => [5, 10, 25, 35, 40, 45, 50, 55];
 
   const disabledTime = (time) => {
     const hour = time.hour();
@@ -144,27 +193,38 @@ function App() {
       userName: formData.userName,
     };
 
+    const updatedEvents = events.map((event) =>
+      event.id === formData.id ? { ...editedEvent } : event
+    );
+
+    return updatedEvents;
+  };
+
+  const createFragmentedEvents = (formData) => {
+    const start = dayjs(formData.start);
+    const end = dayjs(formData.end);
+    const duration = formData.duration;
+    const userName = formData.userName;
+
     const eventsArray = [];
-    const start = dayjs(editedEvent.start);
-    const end = dayjs(editedEvent.end);
+    let currentId = nextId; // Usar uma variável temporária para armazenar o próximo ID
 
     let current = start.clone();
     while (current.isBefore(end)) {
-      const nextEnd = current.clone().add(formData.duration, 'minutes');
+      const nextEnd = current.clone().add(duration, 'minutes');
       if (current.hour() >= 8 && current.hour() < 18) {
         eventsArray.push({
-          id: eventsArray.length + 1,
+          id: currentId,
           start: current.toDate(),
           end: nextEnd.toDate(),
-          userName: editedEvent.userName,
+          userName: userName,
         });
+        currentId++; // Incrementar o próximo ID disponível
       }
       current = nextEnd;
     }
 
-    return isEditing
-      ? events.map((event) => (event.id === formData.id ? { ...editedEvent } : event))
-      : [...events, ...eventsArray];
+    return eventsArray;
   };
 
   return (
@@ -204,13 +264,13 @@ function App() {
         onSelectEvent={onSelectEvent}
         onSelectSlot={handleSlotClick}
         selectable
-        style={{ height: 500 }}
+        style={{ height: 800 }}
         components={{
           event: ({ event }) => <div>{eventTitle(event)}</div>,
         }}
       />
       {isFormOpen && (
-        <form onSubmit={handleFormSubmit}>
+        <form onSubmit={isEditing ? handleEditSubmit : handleFormSubmit}>
           <label>
             Nome do usuário:
             <Input
@@ -276,9 +336,15 @@ function App() {
               ]}
             />
           )}
-          <Button type="primary" htmlType="submit">
-            Salvar
-          </Button>
+          {!isEditing ? (
+            <Button type="primary" htmlType="submit">
+              Salvar
+            </Button>
+          ) : (
+            <Button type="primary" onClick={handleEditEvent}>
+              Editar
+            </Button>
+          )}
           <Button type="default" onClick={handleCloseForm}>
             Cancelar
           </Button>
